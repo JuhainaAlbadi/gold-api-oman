@@ -3,7 +3,7 @@ models.py — Pydantic models for API request/response validation
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional
+
 
 
 class KaratPrices(BaseModel):
