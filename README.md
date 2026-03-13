@@ -172,15 +172,5 @@ gold-api-oman/
 
 ---
 
-## 📊 Evaluation Criteria — How We Covered Them
 
-| Criteria | Implementation |
-|----------|---------------|
-| ✅ Data accuracy & update mechanism | Live scraping from a reliable source + automatic fallback |
-| ✅ API security | API Key authentication on all endpoints |
-| ✅ Code quality & structure | Separated concerns across main, scraper, database, models |
-| ✅ Extra features | Currency conversion + historical price records |
-| ✅ Documentation & ease of use | Auto-generated Swagger docs + detailed README |
-
----
 
