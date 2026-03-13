@@ -20,7 +20,7 @@ app = FastAPI(
         "- Historical price records\n"
         "- Price change comparison\n"
         "- API Key authentication\n\n"
-        "**How to use:** Add `X-API-Key` to your request headers."
+        "**How to use:** Visit `/docs` to explore and test all endpoints interactively."
     ),
     version="1.0.0",
     contact={"name": "Majan Programmer Club Challenge"},
