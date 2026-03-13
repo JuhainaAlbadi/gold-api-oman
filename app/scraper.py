@@ -98,11 +98,10 @@ def _extract_number(text: str) -> float | None:
 
 
 def _fallback_prices() -> dict:
-    """Approximate fallback prices — update manually or from a secondary source."""
-    # Based on last known prices (March 2026)
+    # Last updated: March 13, 2026 — source: omangoldprice.com 
     return {
-        "24k": 64.55,
-        "22k": 60.25,
-        "21k": 57.51,
-        "18k": 49.30,
+        "24k": 64.70,
+        "22k": 60.40,
+        "21k": 57.65,
+        "18k": 49.40,
     }
