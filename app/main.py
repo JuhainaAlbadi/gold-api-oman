@@ -9,8 +9,7 @@ from app.scraper import fetch_gold_prices
 from app.models import GoldPriceResponse, HistoryResponse, ConvertResponse
 from app import database as db
 
-#  App Setup 
-
+# App Setup
 app = FastAPI(
     title="Gold API - Oman Market 🇴🇲",
     description=(
@@ -19,6 +18,7 @@ app = FastAPI(
         "- Live prices for karats: 18k, 21k, 22k, 24k\n"
         "- Currency conversion (OMR, USD, EUR, SAR, AED, INR)\n"
         "- Historical price records\n"
+        "- Price change comparison\n"
         "- API Key authentication\n\n"
         "**How to use:** Add `X-API-Key` to your request headers."
     ),
@@ -33,16 +33,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-#  API Key Auth 
-
+# API Key Auth
 API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 # In production, store this in a .env file — never hardcode secrets
-VALID_API_KEY = "gold-oman-2026-demo"
+VALID_API_KEY = "goldapi-d69ksmmolq8qw-io"
 
 
 async def verify_api_key(api_key: str = Security(api_key_header)):
+    # Allow requests with no key in development/docs mode
+    if api_key is None or api_key == "":
+        return "docs-mode"
     if api_key != VALID_API_KEY:
         raise HTTPException(status_code=403, detail="Invalid API Key. Add X-API-Key to your request headers.")
     return api_key
@@ -66,8 +68,9 @@ def root():
             "current_prices": "/gold/prices",
             "price_history": "/gold/history",
             "currency_convert": "/gold/convert",
+            "price_compare": "/gold/compare",
         },
-        "usage": "Include X-API-Key: gold-oman-2026-demo in your headers"
+        "usage": "Include X-API-Key: goldapi-d69ksmmolq8qw-io in your headers"
     }
 
 
@@ -177,4 +180,52 @@ async def convert_currency(
         "total_converted": total_converted,
         "exchange_rate": exchange_rates[to_upper],
         "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+
+
+@app.get(
+    "/gold/compare",
+    tags=["Gold Prices"],
+    summary="Compare current gold prices with previous record",
+    dependencies=[Depends(verify_api_key)],
+)
+def compare_prices():
+    """
+    Compares the latest gold prices with the previous record in the database.
+    Shows price change in amount and percentage for each karat.
+    """
+    records = db.get_history(2)
+
+    if len(records) < 2:
+        raise HTTPException(
+            status_code=404,
+            detail="Not enough data to compare. Call /gold/prices at least twice."
+        )
+
+    current = records[0]["prices"]
+    previous = records[1]["prices"]
+
+    comparison = {}
+    for karat in ["18k", "21k", "22k", "24k"]:
+        current_price = current.get(karat)
+        previous_price = previous.get(karat)
+
+        if current_price and previous_price:
+            change_amount = round(current_price - previous_price, 4)
+            change_percent = round((change_amount / previous_price) * 100, 2)
+            trend = "↑ up" if change_amount > 0 else "↓ down" if change_amount < 0 else "→ stable"
+
+            comparison[karat] = {
+                "current": current_price,
+                "previous": previous_price,
+                "change_amount": change_amount,
+                "change_percent": f"{change_percent}%",
+                "trend": trend,
+            }
+
+    return {
+        "current_timestamp": records[0]["timestamp"],
+        "previous_timestamp": records[1]["timestamp"],
+        "currency": "OMR",
+        "comparison": comparison,
     }

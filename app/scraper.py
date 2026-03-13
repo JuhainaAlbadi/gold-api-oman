@@ -1,41 +1,53 @@
 """
-scraper.py — Fetches live gold prices from omangoldprice.com
+scraper.py — Fetches live gold prices from goldapi.io and converts to OMR
 """
 
 import requests
-from bs4 import BeautifulSoup
 from datetime import datetime, timezone
 
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    )
-}
+GOLD_API_KEY = "goldapi-d69ksmmolq8qw-io"
+GOLD_API_URL = "https://www.goldapi.io/api"
 
-SOURCE_URL = "https://www.omangoldprice.com/"
+# 1 USD = 0.3845 OMR (fixed rate — Omani Rial is pegged to USD)
+USD_TO_OMR = 0.3845
+
+HEADERS = {
+    "x-access-token": GOLD_API_KEY,
+    "Content-Type": "application/json"
+}
 
 
 def fetch_gold_prices() -> dict | None:
     """
-    Fetches the current gold prices from omangoldprice.com.
-    Returns a dict with prices, or None on failure.
+    Fetches the current gold price from goldapi.io and converts to OMR per gram.
+    Returns a dict with prices for all karats, or falls back to approximate values.
     """
     try:
-        resp = requests.get(SOURCE_URL, headers=HEADERS, timeout=10)
+        # Fetch XAU (gold) price in USD
+        resp = requests.get(f"{GOLD_API_URL}/XAU/USD", headers=HEADERS, timeout=10)
         resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "html.parser")
+        data = resp.json()
 
-        prices = _parse_prices(soup)
+        # Price per troy ounce in USD
+        price_usd_per_oz = data["price"]
 
-        if not prices:
-            # Fallback: use approximate prices if scraping fails
-            prices = _fallback_prices()
+        # Convert to price per gram in USD (1 troy oz = 31.1035 grams)
+        price_usd_per_gram = price_usd_per_oz / 31.1035
+
+        # Convert to OMR
+        price_omr_per_gram_24k = price_usd_per_gram * USD_TO_OMR
+
+        # Calculate other karats based on 24k price
+        prices = {
+            "24k": round(price_omr_per_gram_24k, 3),
+            "22k": round(price_omr_per_gram_24k * (22 / 24), 3),
+            "21k": round(price_omr_per_gram_24k * (21 / 24), 3),
+            "18k": round(price_omr_per_gram_24k * (18 / 24), 3),
+        }
 
         return {
-            "source": "omangoldprice.com",
+            "source": "goldapi.io",
             "currency": "OMR",
             "unit": "gram",
             "market": "Oman Gold Market",
@@ -55,50 +67,9 @@ def fetch_gold_prices() -> dict | None:
         }
 
 
-def _parse_prices(soup: BeautifulSoup) -> dict | None:
-    """Parses the HTML page and extracts gold prices by karat."""
-    try:
-        result = {}
-        carat_map = {
-            "24 Carat": "24k",
-            "22 Carat": "22k",
-            "21 Carat": "21k",
-            "18 Carat": "18k",
-        }
-
-        tables = soup.find_all("table")
-        for table in tables:
-            rows = table.find_all("tr")
-            for row in rows:
-                cells = row.find_all(["td", "th"])
-                if len(cells) >= 2:
-                    label = cells[0].get_text(strip=True)
-                    for carat_name, key in carat_map.items():
-                        if carat_name in label and key not in result:
-                            price_text = cells[1].get_text(strip=True)
-                            price = _extract_number(price_text)
-                            if price:
-                                result[key] = price
-
-        return result if len(result) >= 2 else None
-
-    except Exception:
-        return None
-
-
-def _extract_number(text: str) -> float | None:
-    """Extracts a float from a string like 'OMR 64.55' → 64.55"""
-    import re
-    numbers = re.findall(r"\d+\.?\d*", text.replace(",", ""))
-    for n in numbers:
-        val = float(n)
-        if 10 < val < 500:  # Reasonable range for gold price per gram in OMR
-            return val
-    return None
-
-
 def _fallback_prices() -> dict:
-    # Last updated: March 13, 2026 — source: omangoldprice.com 
+    """Approximate fallback prices — used only if goldapi.io is unreachable."""
+    # Last updated: March 13, 2026
     return {
         "24k": 64.70,
         "22k": 60.40,
