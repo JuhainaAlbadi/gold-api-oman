@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException, Depends, Security
 from fastapi.security.api_key import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-import secrets
 
 from app.database import init_db
 from app.scraper import fetch_gold_prices
@@ -70,7 +69,7 @@ def root():
             "currency_convert": "/gold/convert",
             "price_compare": "/gold/compare",
         },
-        "usage": "Include X-API-Key: goldapi-d69ksmmolq8qw-io in your headers"
+        "usage": "Visit /docs to explore and test all endpoints interactively."
     }
 
 
@@ -87,7 +86,7 @@ async def get_gold_prices():
 
     Available karats: **18K, 21K, 22K, 24K**
 
-    Data is fetched from a reliable source and saved locally to the database.
+    Data is fetched from gold-price-daily.com and saved locally to the database.
     """
     prices = fetch_gold_prices()
     if not prices:
